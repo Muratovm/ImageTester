@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -92,8 +93,12 @@ public class SingleImageInput extends AppCompatActivity {
                 Uri uri = null;
                 if (resultData != null) {
                     uri = resultData.getData();
-                    String directory_path = "/sdcard/" + uri.getLastPathSegment().substring(8);
-                    File directory = new File(directory_path);
+                    assert uri != null;
+                    String uri_path = uri.getLastPathSegment();
+                    Log.d("URI Path", uri.getLastPathSegment());
+                    Log.d("External Path", Environment.getExternalStorageDirectory().getPath());
+                    String directory_path = Environment.getExternalStorageDirectory().getPath()+"/"+ uri_path.substring(uri_path.indexOf(":")+1);
+                    Log.d("File Path", directory_path);File directory = new File(directory_path);
                     final File[] files = directory.listFiles();
 
                     final BitmapFactory.Options options = new BitmapFactory.Options();

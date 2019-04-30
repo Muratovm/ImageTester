@@ -4,12 +4,15 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -21,11 +24,16 @@ import android.widget.Toast;
 
 import org.tensorflow.lite.Interpreter;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.MessageFormat;
@@ -50,8 +58,6 @@ public class MultiImageInput extends AppCompatActivity {
     File path;
 
     int max_index;
-
-    Bitmap scaled_bitmap;
 
     File file;
 
@@ -105,7 +111,12 @@ public class MultiImageInput extends AppCompatActivity {
                 Uri uri = null;
                 if (resultData != null) {
                     uri = resultData.getData();
-                    String directory_path = "/sdcard/" + uri.getLastPathSegment().substring(8);
+                    assert uri != null;
+                    String uri_path = uri.getLastPathSegment();
+                    Log.d("URI Path", uri.getLastPathSegment());
+                    Log.d("External Path", Environment.getExternalStorageDirectory().getPath());
+                    String directory_path = Environment.getExternalStorageDirectory().getPath()+"/"+ uri_path.substring(uri_path.indexOf(":")+1);
+                    Log.d("File Path", directory_path);
                     File directory = new File(directory_path);
                     final File[] files = directory.listFiles();
                     final BitmapFactory.Options options = new BitmapFactory.Options();
@@ -126,7 +137,7 @@ public class MultiImageInput extends AppCompatActivity {
                                 if (file.getName().endsWith(".png") || file.getName().endsWith(".jpg")) {
                                     Log.d(TAG, file.toString());
                                     final Bitmap bitmap = BitmapFactory.decodeFile("" + file, options);
-                                    scaled_bitmap = Bitmap.createScaledBitmap(bitmap, 50, 50, false);
+                                    final Bitmap scaled_bitmap = Bitmap.createScaledBitmap(bitmap, 50, 50, false);
                                     final String output = doInference(scaled_bitmap);
                                     output_string.append(max_index + "\n");
                                     /*
@@ -137,14 +148,14 @@ public class MultiImageInput extends AppCompatActivity {
                                     runOnUiThread(new Runnable() {
                                                       @Override
                                                       public void run() {
-                                                          if(output != null) {
-                                                              tv.setText(output);
-                                                          }
-                                                          final BitmapDrawable drawable = new BitmapDrawable(getResources(), scaled_bitmap);
-                                                          drawable.getPaint().setFilterBitmap(false);
-                                                          image.setImageDrawable(drawable);
-                                                      }
-                                                  }
+                                              if(output != null) {
+                                                  tv.setText(output);
+                                              }
+                                              final BitmapDrawable drawable = new BitmapDrawable(getResources(), scaled_bitmap);
+                                              drawable.getPaint().setFilterBitmap(false);
+                                              image.setImageDrawable(drawable);
+                                            }
+                                        }
                                     );
                                 }
                             }
@@ -208,35 +219,26 @@ public class MultiImageInput extends AppCompatActivity {
     }
 
     private String doInference(Bitmap bitmap) {
+        int num_saved = 10;
         float_bitmaps.add(BitmapToArray(bitmap));
         //else if(System.currentTimeMillis() - timestamps.getLast() >= 250){
-        if(float_bitmaps.size() < 10){
+        if(float_bitmaps.size() < num_saved){
             return null;
         }
-        if (float_bitmaps.size() > 10) {
+        if (float_bitmaps.size() > num_saved) {
             float_bitmaps.pop();
         }
 
 
-        float[][][][] float_pixels = new float[1][50][50][10];
+        float[][][][] float_pixels = new float[1][50][50][num_saved];
         float[][] outputVal = new float[1][9];
 
         for (int i = 0; i < 50; i++) {
             for (int j = 0; j < 50; j++) {
-                for (int b = 0; b < 10; b++) {
+                for (int b = 0; b < num_saved; b++) {
                     int value = (int) float_bitmaps.get(b)[i * 50 + j];
                     float_pixels[0][i][j][b] = value;
-                    /*
-                    if(!set){
-                        output_string.append(value + ",");
-                    }
-                    */
                 }
-                /*
-                if(!set) {
-                    output_string.append("\n");
-                }
-                */
             }
         }
 
